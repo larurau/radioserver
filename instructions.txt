@@ -1,0 +1,16 @@
+radio.py needs:
+ - python-mdp2-1.0.0 to be installed manually
+
+getMouseDirection.py needs:
+ - 
+
+
+
+ export PYTHONPATH=.:/usr/local/lib/python3
+alias radio='python3 ~/ProjectRadio/buildfiles/radio.py'
+alias snakejazz='mpg123 /home/pi/ProjectRadio/the-radio-master/noise_tracks/Snake\ Jazz.mp3'
+
+alias radioserver=' sudo mpd --kill /home/pi/ProjectRadio/the-radio-master/config_files/mpd1.conf; 
+                    sudo mpd /home/pi/ProjectRadio/the-radio-master/config_files/mpd1.conf;
+                    sudo mpd --kill /home/pi/ProjectRadio/the-radio-master/config_files/mpd2.conf; 
+                    sudo mpd /home/pi/ProjectRadio/the-radio-master/config_files/mpd2.conf;'
