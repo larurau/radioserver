@@ -2,6 +2,9 @@
 import sys
 if sys.version_info[0] < 3:
     raise Exception("Python 3 or a more recent version is required.")
+import logging
+logging.basicConfig(level=logging.WARNING)
+
 import signal
 import time
 import mpd
@@ -9,11 +12,36 @@ import numpy
 import usb.core
 import usb.util
 import datetime
-import logging
 from mouseDevice import mouseDevice 
 
-logging.basicConfig(level=logging.WARNING)
+def newPosition(change, position, range):
+    newposition = position + change
+    if (newposition>range):
+        newposition -= range
+    elif (newposition<0):
+        newposition = range + position
+    return newposition
 
+def calculateVolume(value, range):
+    volume = round(value/range*100)
+    if(volume<0):
+        volume=0
+    elif(volume>100):
+        volume=100
+    return volume
+
+def changeVolume(client, volume):
+    client.send_setvol(volume)
+    client.fetch_setvol(volume)
+    """while True:
+        try:
+            
+            break
+                    
+        except Exception:
+            print("Connection lost while reading line, retry ...")
+            time.sleep(1)"""
+    
 client1 = mpd.MPDClient()           # create client object, music
 client2 = mpd.MPDClient()           # create client object, noise
 
@@ -34,11 +62,10 @@ while True:
         print("Initial connect music server")
         break
        
-    except:
+    except Exception:
         client1.connect("localhost", 6600)
         logging.info("Initial connect music server failed ...")
         time.sleep(1)
-
 
 # Connect to noise server
 while True:
@@ -54,14 +81,15 @@ while True:
         client2.fetch_play()
         client2.send_repeat(1)
         client2.fetch_repeat(1)
-        logging.info("Initial connect noise server")
+        print("Initial connect noise server")
         break
                 
-    except:
+    except Exception:
         client2.connect("localhost", 6601)
-        print("Initial connect noise server failed ...")
+        logging.info("Initial connect noise server failed ...")
         time.sleep(1)
 
+# Signal handling
 mouseDetached = False
 def signal_handler(sig, frame):
     print('\nYou pressed Ctrl+C!')
@@ -77,58 +105,27 @@ def signal_handler(sig, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-
-last_station_pos=0;             # Position of last station 
-noise_track_skip=True;          # Change noise track
-station_dist=700;               # Distance between stations
-station_width=100;              # with of 100% volume area around stations
-vol_slope=0.004                 # Outside of station_with volume decreases with slope
-vol_fac=1.0                     # Volume factor - this is what we change when we operate the station dial
-vol_filter=numpy.arange(1,5);   # Volume filter array
-master_volume=30                # Initial master volume
-select_travel=0;                # How far deep is the start/stop button press
-select_pressed=0;               # start/stop button pressed?
-
-# Playlist names
-playlist_name=["web-radio-local", "web-radio-int", "web-radio-news","volatile"];
-
-print("Start mouse setup ...")
-
+# Variables for loop
 mouse = mouseDevice(1133, 49256)
-
 range = 2000
-momentaryPosition = 1000
-loudness = 50
-
+position = 1000
 lastsecond = datetime.datetime.now().second
 
-print("Finished mouse setup ...")
-
+print("Starting loop ...")
 while True: 
 
-    velocity = mouse.readLeftRightMovement()
-    velocity = velocity/3
+    velocity = mouse.readLeftRightMovement()/3
 
-    momentaryPosition += velocity
-    if (momentaryPosition>range):
-        momentaryPosition -= range
-    elif (momentaryPosition<0):
-        momentaryPosition = range + momentaryPosition
+    position = newPosition(velocity, position, range)
 
-    loudness = round(momentaryPosition/range*100)
-    if(loudness<0):
-        loudness=0
-    elif(loudness>100):
-        loudness=100
+    volume = calculateVolume(position, range)
 
-    client1.send_setvol(loudness)
-    client1.fetch_setvol(loudness)
-    client2.send_setvol(100-loudness)
-    client2.fetch_setvol(100-loudness)
+    changeVolume(client1, volume)
+    changeVolume(client2, 100-volume)
 
     if(lastsecond != datetime.datetime.now().second):
-        print("position: " + str(momentaryPosition))
-        print("volume:   " + str(loudness))
+        print("position: " + str(position))
+        print("volume:   " + str(volume))
         lastsecond = datetime.datetime.now().second
 
 client1.close()
