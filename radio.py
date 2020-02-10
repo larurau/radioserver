@@ -10,8 +10,9 @@ import usb.core
 import usb.util
 import datetime
 import logging
+from mouseDevice import mouseDevice 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 client1 = mpd.MPDClient()           # create client object, music
 client2 = mpd.MPDClient()           # create client object, noise
@@ -30,7 +31,7 @@ while True:
         client1.fetch_play()
         #client2.send_repeat(1)      #
         #client2.fetch_repeat(1)     #
-        logging.info("Initial connect music server")
+        print("Initial connect music server")
         break
        
     except:
@@ -58,11 +59,10 @@ while True:
                 
     except:
         client2.connect("localhost", 6601)
-        logging.info("Initial connect noise server failed ...")
+        print("Initial connect noise server failed ...")
         time.sleep(1)
 
 mouseDetached = False
-
 def signal_handler(sig, frame):
     print('\nYou pressed Ctrl+C!')
     client1.close()
@@ -94,20 +94,7 @@ playlist_name=["web-radio-local", "web-radio-int", "web-radio-news","volatile"];
 
 print("Start mouse setup ...")
 
-# decimal vendor and product values
-dev = usb.core.find(idVendor=1133, idProduct=49256)                                         # => device object
-
-# first endpoint
-interface = 0
-endpoint = dev[0][(0,0)][0]
-
-# if the OS kernel already claimed the device, which is most likely true http://stackoverflow.com/questions/8218683/pyusb-cannot-set-configuration
-if dev.is_kernel_driver_active(interface) is True:
-    # tell the kernel to detach
-    dev.detach_kernel_driver(interface)
-    # claim the device
-    usb.util.claim_interface(dev, interface)
-
+mouse = mouseDevice(1133, 49256)
 
 range = 2000
 momentaryPosition = 1000
@@ -117,48 +104,32 @@ lastsecond = datetime.datetime.now().second
 
 print("Finished mouse setup ...")
 
-print(client1.status())
-print("---")
-print(client2.status())
-
 while True: 
 
-    try:
-        data = dev.read(endpoint.bEndpointAddress,endpoint.wMaxPacketSize)
-        
-        velocity = int(data[2])
-        if (data[3] == 255):
-            velocity = (velocity-256)
-        velocity = velocity/3
+    velocity = mouse.readLeftRightMovement()
+    velocity = velocity/3
 
-        momentaryPosition += velocity
-        if (momentaryPosition>range):
-            momentaryPosition -= range
-        elif (momentaryPosition<0):
-            momentaryPosition = range + momentaryPosition
+    momentaryPosition += velocity
+    if (momentaryPosition>range):
+        momentaryPosition -= range
+    elif (momentaryPosition<0):
+        momentaryPosition = range + momentaryPosition
 
-        loudness = round(momentaryPosition/range*100)
-        if(loudness<0):
-            loudness=0
-        elif(loudness>100):
-            loudness=100
+    loudness = round(momentaryPosition/range*100)
+    if(loudness<0):
+        loudness=0
+    elif(loudness>100):
+        loudness=100
 
-        client1.send_setvol(loudness)
-        client1.fetch_setvol(loudness)
-        client2.send_setvol(100-loudness)
-        client2.fetch_setvol(100-loudness)
+    client1.send_setvol(loudness)
+    client1.fetch_setvol(loudness)
+    client2.send_setvol(100-loudness)
+    client2.fetch_setvol(100-loudness)
 
-        if(lastsecond != datetime.datetime.now().second):
-            print("position: " + str(momentaryPosition))
-            print("volume:   " + str(loudness))
-            lastsecond = datetime.datetime.now().second
-
-    except usb.core.USBError as e:
-        data = None
-        if e.args == ('Operation timed out',):
-            continue
-
-
+    if(lastsecond != datetime.datetime.now().second):
+        print("position: " + str(momentaryPosition))
+        print("volume:   " + str(loudness))
+        lastsecond = datetime.datetime.now().second
 
 client1.close()
 client2.close()

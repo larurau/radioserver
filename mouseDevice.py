@@ -9,19 +9,19 @@ class mouseDevice:
         self.dev = usb.core.find(idVendor=IDVendor, idProduct=IDProduct)
         # first endpoint
         self.interface = 0
-        self.endpoint = dev[0][(0,0)][0]
+        self.endpoint = self.dev[0][(0,0)][0]
 
         # if the OS kernel already claimed the device, which is most likely true http://stackoverflow.com/questions/8218683/pyusb-cannot-set-configuration
-        if self.dev.is_kernel_driver_active(interface) is True:
+        if self.dev.is_kernel_driver_active(self.interface) is True:
             # tell the kernel to detach
-            self.dev.detach_kernel_driver(interface)
+            self.dev.detach_kernel_driver(self.interface)
             # claim the device
-            usb.util.claim_interface(dev, interface)
+            usb.util.claim_interface(self.dev, self.interface)
 
     def readLeftRightMovement(self):
         while True: 
             try:
-                data = self.dev.read(endpoint.bEndpointAddress,endpoint.wMaxPacketSize)
+                data = self.dev.read(self.endpoint.bEndpointAddress,self.endpoint.wMaxPacketSize)
                 velocity = int(data[2])
                 if (data[3] == 255):
                     velocity = (velocity-256)
