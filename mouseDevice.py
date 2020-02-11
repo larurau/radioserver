@@ -36,4 +36,4 @@ class mouseDevice:
         # release the device
         usb.util.release_interface(self.dev, self.interface)
         # reattach the device to the OS kernel
-        dev.attach_kernel_driver(self.interface)
+        self.dev.attach_kernel_driver(self.interface)
